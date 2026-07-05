@@ -23,9 +23,16 @@ out of the box pixel understands things like:
 - `play lofi` · `next station` · `quieter` · `stop the music`
 - `change the scene` · `dim it a bit`
 
-paste a free [groq](https://console.groq.com) api key in **settings** and pixel
-gets a real brain — free chat, motivation, quick study questions, and smarter
-command understanding. the key never leaves your device.
+paste a free api key in **settings** and pixel gets a real brain — free chat,
+motivation, quick study questions, and smarter command understanding. two
+providers are supported, pick either in the settings brain picker:
+
+- [groq](https://console.groq.com) — llama models, very fast
+- [google gemini](https://aistudio.google.com) — gemini models
+
+the model list is fetched live from the provider, so new models show up as soon
+as they're released; leave it on **auto** for a sensible default. keys never
+leave your device.
 
 ## develop
 

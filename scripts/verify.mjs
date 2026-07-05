@@ -19,6 +19,36 @@ const browser = await chromium.launch(
 const page = await browser.newPage({ viewport: { width: 1180, height: 820 } })
 page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message))
 
+// mock the AI provider APIs (offline-safe, deterministic)
+const geminiReply = {
+  candidates: [
+    {
+      content: {
+        role: 'model',
+        parts: [{ text: 'on it! locking you in 🌱' }, { functionCall: { name: 'set_timer', args: { minutes: 7 } } }],
+      },
+    },
+  ],
+}
+await page.route('**/generativelanguage.googleapis.com/v1beta/models?*', (route) =>
+  route.fulfill({
+    json: {
+      models: [
+        { name: 'models/gemini-3-pro-preview', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash-image', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-embedding-001', supportedGenerationMethods: ['embedContent'] },
+      ],
+    },
+  }),
+)
+await page.route('**/generativelanguage.googleapis.com/v1beta/models/*%3AgenerateContent*', (r) =>
+  r.fulfill({ json: geminiReply }),
+)
+await page.route('**/generativelanguage.googleapis.com/v1beta/models/*:generateContent*', (r) =>
+  r.fulfill({ json: geminiReply }),
+)
+
 await page.goto(BASE, { waitUntil: 'networkidle' })
 await page.waitForTimeout(1200)
 await page.screenshot({ path: `${OUT}/01-home-landscape.png` })
@@ -64,6 +94,21 @@ await page.screenshot({ path: `${OUT}/06-scenes.png` })
 await page.getByTestId('dock-settings').click()
 await page.waitForTimeout(600)
 await page.screenshot({ path: `${OUT}/07-settings.png` })
+
+// --- brain picker: switch to gemini, fetch models, choose one ---
+await page.getByTestId('provider-gemini').click()
+await page.getByTestId('brain-key').fill('AIza-test-key')
+await page.getByTestId('model-pick').click()
+await page.waitForTimeout(700)
+const listText = (await page.getByTestId('model-list').textContent()) ?? ''
+check('gemini models fetched', listText.includes('gemini-3-pro-preview'), listText.slice(0, 120))
+check('non-chat models filtered out', !listText.includes('embedding') && !listText.includes('image'))
+await page.screenshot({ path: `${OUT}/12-model-picker.png` })
+await page.locator('.modelitem', { hasText: 'gemini-3-pro-preview' }).click()
+await page.waitForTimeout(300)
+const pickText = (await page.getByTestId('model-pick').textContent()) ?? ''
+check('model selected', pickText.includes('gemini-3-pro-preview'), pickText)
+
 await page.getByTestId('dock-settings').click()
 await page.waitForTimeout(500)
 
@@ -85,6 +130,15 @@ await page.waitForTimeout(3000)
 const taskTexts = await page.locator('.task__text').allTextContents()
 check('companion added task', taskTexts.some((t) => t.includes('pharmacology flashcards')), taskTexts.join('|'))
 await page.screenshot({ path: `${OUT}/09-companion-task.png` })
+
+// --- gemini brain: free-form phrase the offline parser can't handle ---
+await page.getByTestId('chat-input').fill('hmm i wanna lock in for a lil bit, you decide')
+await page.getByTestId('chat-input').press('Enter')
+await page.waitForTimeout(4000)
+const remG = await page.getByTestId('remaining').textContent().catch(() => null)
+check('gemini tool call set 7 min timer', /^[67]:/.test(remG ?? ''), remG ?? 'none')
+const bubbleG = await page.getByTestId('bubble').textContent().catch(() => '')
+check('gemini reply shown', /locking you in/.test(bubbleG ?? ''), bubbleG ?? '')
 
 // --- drag & drop the companion ---
 const crab = page.getByTestId('companion-canvas')

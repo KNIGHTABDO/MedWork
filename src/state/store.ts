@@ -72,9 +72,16 @@ export interface AppState {
 
   // ---- settings ----
   groqKey: string
+  geminiKey: string
+  provider: 'groq' | 'gemini'
+  groqModel: string
+  geminiModel: string
   userName: string
   use24h: boolean
   setGroqKey: (k: string) => void
+  setGeminiKey: (k: string) => void
+  setProvider: (p: 'groq' | 'gemini') => void
+  setModel: (provider: 'groq' | 'gemini', model: string) => void
   setUserName: (n: string) => void
   setUse24h: (v: boolean) => void
 
@@ -195,9 +202,17 @@ export const useStore = create<AppState>()(
 
       // ---- settings ----
       groqKey: '',
+      geminiKey: '',
+      provider: 'groq',
+      groqModel: 'auto',
+      geminiModel: 'auto',
       userName: '',
       use24h: false,
       setGroqKey: (k) => set({ groqKey: k.trim() }),
+      setGeminiKey: (k) => set({ geminiKey: k.trim() }),
+      setProvider: (p) => set({ provider: p }),
+      setModel: (provider, model) =>
+        set(provider === 'gemini' ? { geminiModel: model } : { groqModel: model }),
       setUserName: (n) => set({ userName: n.trim() }),
       setUse24h: (v) => set({ use24h: v }),
 
@@ -226,6 +241,10 @@ export const useStore = create<AppState>()(
         stationId: st.stationId,
         volume: st.volume,
         groqKey: st.groqKey,
+        geminiKey: st.geminiKey,
+        provider: st.provider,
+        groqModel: st.groqModel,
+        geminiModel: st.geminiModel,
         userName: st.userName,
         use24h: st.use24h,
         companionX: st.companionX,

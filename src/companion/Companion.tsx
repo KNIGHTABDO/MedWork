@@ -3,16 +3,18 @@ import { useStore } from '../state/store'
 import { ANIMS, drawFrame, SPRITE_H, SPRITE_SCALE, SPRITE_W, type AnimName } from './sprite'
 import { intentToStep } from './actions'
 import { parseIntent, FALLBACK_REPLY } from './brain/parser'
-import { askGroq } from './brain/groq'
+import { activeKey, askBrain } from './brain'
 
 const W = SPRITE_W * SPRITE_SCALE
 const H = SPRITE_H * SPRITE_SCALE
 const SPEED = 170 // px/s
 const EDGE = 14
 
-const GROQ_ERRORS: Record<string, string> = {
+const BRAIN_ERRORS: Record<string, string> = {
   'no-key': FALLBACK_REPLY,
-  'bad-key': 'that groq key doesn’t seem right — check settings 🔑',
+  'bad-key': 'that api key doesn’t seem right — check settings 🔑',
+  'bad-model': 'that model didn’t answer — pick another one in settings 🤖',
+  'rate-limit': 'my brain needs a tiny break (rate limit) — try again in a moment 🫧',
   network: 'i can’t reach my big brain right now 🌧 simple commands still work',
   empty: 'my thoughts got lost… try again?',
 }
@@ -252,16 +254,15 @@ export function Companion() {
           speak(replies[replies.length - 1] ?? 'done!')
           return
         }
-        const key = useStore.getState().groqKey
-        if (!key) {
+        if (!activeKey()) {
           speak(FALLBACK_REPLY, 9000)
           return
         }
         setThinking(true)
-        const res = await askGroq(text)
+        const res = await askBrain(text)
         setThinking(false)
         if ('error' in res) {
-          speak(GROQ_ERRORS[res.error] ?? 'something went sideways 🌀', 9000)
+          speak(BRAIN_ERRORS[res.error] ?? 'something went sideways 🌀', 9000)
           return
         }
         const replies = await runIntents(res.intents)

@@ -639,6 +639,136 @@
   line-height: 1.5;
 }
 
+/* provider segmented pill */
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.22);
+}
+
+.seg__opt {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: var(--radius-pill);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-dim);
+  transition: background-color 0.3s var(--ease-soft), color 0.3s var(--ease-soft);
+}
+
+.seg__opt--on {
+  color: var(--ink);
+  background:
+    radial-gradient(130% 180% at 12% -30%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 55%),
+    rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* compact model picker */
+.modelpick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.modelpick__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-dim);
+}
+
+.modelpick__cur {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent-soft);
+}
+
+.modelpick__chev {
+  color: var(--ink-faint);
+  font-size: 12px;
+  transition: transform 0.3s var(--spring);
+}
+
+.modelpick__chev--up {
+  transform: rotate(180deg);
+}
+
+.modellist {
+  max-height: 190px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  -webkit-overflow-scrolling: touch;
+  animation: bubblein-flat 0.3s var(--ease-soft);
+}
+
+@keyframes bubblein-flat {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modellist__note {
+  padding: 14px 12px;
+  font-size: 13px;
+  color: var(--ink-faint);
+  text-align: center;
+  font-weight: 500;
+}
+
+.modelitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--ink-dim);
+  transition: background-color 0.2s var(--ease-soft);
+}
+
+.modelitem--on {
+  color: var(--ink);
+  background: rgba(255, 192, 122, 0.14);
+}
+
+.modelitem__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.modelitem__hint {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
 .gswitch {
   position: relative;
   width: 52px;

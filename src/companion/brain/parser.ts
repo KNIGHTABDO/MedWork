@@ -107,4 +107,4 @@ export function parseIntent(raw: string): Intent | null {
 }
 
 export const FALLBACK_REPLY =
-  'hmm, i didn’t catch that 🦀 try “set a 25 min timer”, “play lofi”, or “add task: review anatomy” — or give me a groq key in settings and i get much smarter'
+  'hmm, i didn’t catch that 🦀 try “set a 25 min timer”, “play lofi”, or “add task: review anatomy” — or give me a groq or gemini key in settings and i get much smarter'
