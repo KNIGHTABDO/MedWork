@@ -150,6 +150,7 @@ box = await crab.boundingBox()
 await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
 await page.mouse.down()
 await page.mouse.move(box.x - 200, box.y - 300, { steps: 12 })
+await page.waitForTimeout(220) // settle so the release reads as a gentle drop, not a throw
 await page.mouse.up()
 await page.waitForTimeout(400)
 const after = await page.getByTestId('companion').evaluate((el) => el.style.transform)
@@ -165,6 +166,43 @@ box = await crab.boundingBox()
 await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 await page.waitForTimeout(400)
 check('tap after drag still opens chat', await page.getByTestId('chat-input').isVisible())
+
+// --- throw him: fast flick → physics → dizzy landing ---
+box = await crab.boundingBox()
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+await page.mouse.down()
+await page.mouse.move(box.x + 320, box.y - 160, { steps: 4 })
+await page.mouse.up()
+const sawDizzy = await page
+  .waitForFunction(() => document.querySelector('[data-testid="companion-canvas"]')?.dataset.anim === 'dizzy', null, { timeout: 6000 })
+  .then(() => true)
+  .catch(() => false)
+check('throw triggers dizzy landing', sawDizzy)
+await page.screenshot({ path: `${OUT}/13-tossed.png` })
+await page.waitForTimeout(2200)
+const landed = await page.getByTestId('companion').evaluate((el) => el.style.transform)
+check('lands back on the ground', /px,\s*0px,\s*0(px)?\)/.test(landed), landed)
+
+// carry him to the corner so he doesn't block the tasks panel
+box = await crab.boundingBox()
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+await page.mouse.down()
+await page.mouse.move(70, 820 - 50, { steps: 10 })
+await page.waitForTimeout(220)
+await page.mouse.up()
+await page.waitForTimeout(300)
+
+// --- manual task check-off gets a cheer ---
+if (!(await page.getByTestId('panel-tasks').isVisible().catch(() => false))) {
+  await page.getByTestId('dock-tasks').click()
+  await page.waitForTimeout(600)
+}
+await page.locator('.task:not(.task--done) .task__check').first().click()
+await page.waitForTimeout(600)
+const cheer = (await page.getByTestId('bubble').textContent().catch(() => '')) ?? ''
+check('task check-off cheer', /nice one|one down|look at you/.test(cheer), cheer)
+await page.getByTestId('dock-tasks').click()
+await page.waitForTimeout(400)
 
 await page.setViewportSize({ width: 820, height: 1180 })
 await page.waitForTimeout(800)

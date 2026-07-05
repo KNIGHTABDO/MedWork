@@ -9,6 +9,23 @@ const W = SPRITE_W * SPRITE_SCALE
 const H = SPRITE_H * SPRITE_SCALE
 const SPEED = 170 // px/s
 const EDGE = 14
+const GRAVITY = 2200 // px/s² — for when he gets yeeted
+const THROW_SPEED = 900 // release velocity that counts as a throw
+
+const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)]
+
+const TOSS_LINES = ['wheee!! 🤸', 'ok. rude. 🌀', 'again again!!', 'i meant to do that']
+const TASK_DONE_LINES = ['nice one ✅', 'one down 🎉', 'look at you go 🌟']
+const WAVE_LINES = ['hi hi 👋', 'you got this', 'still here w you 🦀']
+const SLEEPY_LINES = ['mmh… five more minutes 😴', 'wha— i’m up, i’m up']
+
+function quipFor(hour: number, timerIdle: boolean) {
+  if (timerIdle && Math.random() < 0.5) return 'wanna do a lil 25? i’ll time it ⏱'
+  if (hour < 5) return pick(['night shift huh 🌙 sleep is anatomy too', 'the 3am grind… legendary'])
+  if (hour < 12) return pick(['morning brain is best brain ☀️', 'coffee + notes = magic'])
+  if (hour < 18) return pick(['steady afternoon vibes 🌤', 'lil stretch maybe?'])
+  return pick(['cozy evening study 🌆', 'we’re in the zone tonight'])
+}
 
 const BRAIN_ERRORS: Record<string, string> = {
   'no-key': FALLBACK_REPLY,
@@ -38,7 +55,16 @@ export function Companion() {
     anim: 'idle' as AnimName,
     animUntil: 0, // for one-shot anims (happy/tap/blink)
     target: null as null | { x: number; resolve: () => void },
-    drag: null as null | { startX: number; startY: number; baseX: number; baseY: number; moved: boolean },
+    drag: null as null | {
+      startX: number
+      startY: number
+      baseX: number
+      baseY: number
+      moved: boolean
+      wokeHim: boolean
+      samples: { x: number; y: number; t: number }[]
+    },
+    flight: null as null | { vx: number; vyUp: number },
     frameIdx: 0,
     frameAt: 0,
     lastDrawnKey: '',
@@ -46,6 +72,10 @@ export function Companion() {
     nextWander: Date.now() + 9000,
     nextBlink: Date.now() + 3000,
     nextHydrate: Date.now() + 45 * 60_000,
+    nextGroove: Date.now() + 60_000,
+    nextQuip: Date.now() + 25 * 60_000,
+    halfwayKey: 0,
+    firedHalfway: false,
     busy: false,
   })
 
@@ -60,7 +90,11 @@ export function Companion() {
     const c = ctl.current
     c.lastInteraction = Date.now()
     if (c.anim === 'sleep') {
-      c.anim = 'idle'
+      // stretch and yawn before rejoining the world
+      c.anim = 'yawn'
+      c.frameIdx = 0
+      c.frameAt = performance.now()
+      c.animUntil = Date.now() + 1500
       setSleeping(false)
     }
   }, [])
@@ -104,12 +138,44 @@ export function Companion() {
 
       // one-shot anim expiry
       if (c.animUntil && Date.now() > c.animUntil) {
-        c.anim = c.target ? 'walk' : 'idle'
+        c.anim = c.flight ? 'held' : c.target ? 'walk' : 'idle'
         c.animUntil = 0
       }
 
-      // movement (paused while being dragged)
-      if (c.target && !c.drag) {
+      // airborne after a throw
+      if (c.flight && !c.drag) {
+        const f = c.flight
+        f.vyUp -= GRAVITY * dt
+        c.x += f.vx * dt
+        c.yOff += f.vyUp * dt
+        c.facing = f.vx >= 0 ? 1 : -1
+        const maxX = window.innerWidth - W - EDGE
+        const maxY = window.innerHeight - H - 90
+        if (c.x <= EDGE || c.x >= maxX) {
+          c.x = Math.min(maxX, Math.max(EDGE, c.x))
+          f.vx *= -0.6
+        }
+        if (c.yOff >= maxY) {
+          c.yOff = maxY
+          f.vyUp = -Math.abs(f.vyUp) * 0.3
+        }
+        if (c.yOff <= 0) {
+          c.yOff = 0
+          if (f.vyUp < -260) {
+            f.vyUp = -f.vyUp * 0.35 // bounce
+            f.vx *= 0.7
+          } else {
+            c.flight = null
+            setAnim('dizzy', 1600)
+            speak(pick(TOSS_LINES), 4000)
+            useStore.getState().setCompanionPos(c.x, 0)
+            c.nextWander = Date.now() + 8000
+          }
+        }
+      }
+
+      // movement (paused while being dragged or mid-air)
+      if (c.target && !c.drag && !c.flight) {
         const dx = c.target.x - c.x
         const step = SPEED * dt
         c.facing = dx >= 0 ? 1 : -1
@@ -128,11 +194,27 @@ export function Companion() {
         }
       }
 
-      // ambient behavior (only when not running a command / chatting / held)
+      // halfway whisper — once per focus session of 20min+
+      const st = useStore.getState()
+      if (st.phase === 'focus' && st.endsAt && st.phaseDurationSec >= 1200) {
+        const remaining = (st.endsAt - Date.now()) / 1000
+        if (st.endsAt !== c.halfwayKey) {
+          c.halfwayKey = st.endsAt
+          c.firedHalfway = remaining <= st.phaseDurationSec / 2
+        }
+        if (!c.firedHalfway && remaining > 0 && remaining <= st.phaseDurationSec / 2) {
+          c.firedHalfway = true
+          speak('halfway there 🌗')
+        }
+      } else if (st.phase !== 'focus') {
+        c.firedHalfway = false
+        c.halfwayKey = 0
+      }
+
+      // ambient behavior (only when not running a command / chatting / held / airborne)
       const idleFor = Date.now() - c.lastInteraction
-      if (!c.busy && !c.target && !c.animUntil && !c.drag) {
-        const phase = useStore.getState().phase
-        if (phase === 'focus' && idleFor > 75_000 && c.anim !== 'sleep') {
+      if (!c.busy && !c.target && !c.animUntil && !c.drag && !c.flight) {
+        if (st.phase === 'focus' && idleFor > 75_000 && c.anim !== 'sleep') {
           setAnimRaw('sleep')
           setSleeping(true)
         }
@@ -142,18 +224,41 @@ export function Companion() {
             c.anim = 'blink'
             c.animUntil = Date.now() + 150
           } else if (
+            Date.now() > c.nextGroove &&
+            st.musicStatus === 'playing' &&
+            c.yOff < 4
+          ) {
+            // a little groove while the radio plays
+            c.nextGroove = Date.now() + 60_000 + Math.random() * 60_000
+            setAnim('happy', 1800)
+          } else if (
             Date.now() > c.nextWander &&
             c.yOff < 4 && // perched somewhere? stay put until dragged or commanded
-            !useStore.getState().chatOpen
+            !st.chatOpen
           ) {
             c.nextWander = Date.now() + 12_000 + Math.random() * 18_000
-            const nx = EDGE + Math.random() * (window.innerWidth - W - EDGE * 2)
-            void walkTo(nx)
+            const roll = Math.random()
+            if (roll < 0.55) {
+              const nx = EDGE + Math.random() * (window.innerWidth - W - EDGE * 2)
+              void walkTo(nx)
+            } else if (roll < 0.7) {
+              setAnim('sit', 4000 + Math.random() * 4000)
+            } else if (roll < 0.85) {
+              setAnim('wave', 1500)
+              if (Math.random() < 0.35) speak(pick(WAVE_LINES), 4000)
+            } else {
+              c.anim = 'blink'
+              c.animUntil = Date.now() + 420
+            }
           }
         }
         if (Date.now() > c.nextHydrate && c.anim !== 'sleep') {
           c.nextHydrate = Date.now() + 45 * 60_000
           speak('hydrate break 💧')
+        }
+        if (Date.now() > c.nextQuip && c.anim !== 'sleep' && !st.chatOpen) {
+          c.nextQuip = Date.now() + 25 * 60_000 + Math.random() * 15 * 60_000
+          speak(quipFor(new Date().getHours(), st.phase === 'idle'), 7000)
         }
       }
 
@@ -166,6 +271,7 @@ export function Companion() {
       const key = `${c.anim}:${c.frameIdx % animDef.frames.length}:${c.facing}`
       if (key !== c.lastDrawnKey) {
         c.lastDrawnKey = key
+        canvas.dataset.anim = c.anim
         const ctx = canvas.getContext('2d')
         if (ctx) drawFrame(ctx, animDef.frames[c.frameIdx % animDef.frames.length], c.facing < 0)
       }
@@ -185,7 +291,7 @@ export function Companion() {
 
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [speak, walkTo])
+  }, [setAnim, speak, walkTo])
 
   /* ---- wake on any touch ---- */
   useEffect(() => {
@@ -212,6 +318,22 @@ export function Companion() {
       window.removeEventListener('medwork:focus-done', onFocusDone)
       window.removeEventListener('medwork:break-done', onBreakDone)
     }
+  }, [setAnim, speak, wake])
+
+  /* ---- cheer when a task gets checked off by hand ---- */
+  useEffect(() => {
+    let prevDone = useStore.getState().tasks.filter((t) => t.done).length
+    return useStore.subscribe((s) => {
+      const done = s.tasks.filter((t) => t.done).length
+      const grew = done > prevDone
+      prevDone = done
+      // his own complete_task commands already celebrate via the reply
+      if (grew && !ctl.current.busy && !ctl.current.drag && !ctl.current.flight) {
+        wake()
+        setAnim('happy', 1200)
+        speak(pick(TASK_DONE_LINES), 4000)
+      }
+    })
   }, [setAnim, speak, wake])
 
   /* ---- command handling ---- */
@@ -337,9 +459,19 @@ export function Companion() {
         data-testid="companion-canvas"
         onPointerDown={(e) => {
           const c = ctl.current
+          const wasAsleep = c.anim === 'sleep' || c.anim === 'yawn'
           wake()
+          c.flight = null // caught mid-air!
           e.currentTarget.setPointerCapture(e.pointerId)
-          c.drag = { startX: e.clientX, startY: e.clientY, baseX: c.x, baseY: c.yOff, moved: false }
+          c.drag = {
+            startX: e.clientX,
+            startY: e.clientY,
+            baseX: c.x,
+            baseY: c.yOff,
+            moved: false,
+            wokeHim: wasAsleep,
+            samples: [{ x: e.clientX, y: e.clientY, t: performance.now() }],
+          }
         }}
         onPointerMove={(e) => {
           const c = ctl.current
@@ -357,6 +489,8 @@ export function Companion() {
           if (d.moved) {
             c.x = Math.min(window.innerWidth - W - EDGE, Math.max(EDGE, d.baseX + dx))
             c.yOff = Math.min(window.innerHeight - H - 90, Math.max(0, d.baseY - dy))
+            d.samples.push({ x: e.clientX, y: e.clientY, t: performance.now() })
+            if (d.samples.length > 8) d.samples.shift()
           }
         }}
         onPointerUp={(e) => {
@@ -365,12 +499,30 @@ export function Companion() {
           c.drag = null
           if (!d) return
           e.currentTarget.releasePointerCapture(e.pointerId)
-          if (d.moved) {
-            setAnim(c.yOff > 4 ? 'idle' : 'happy', c.yOff > 4 ? 0 : 900)
-            useStore.getState().setCompanionPos(c.x, c.yOff)
-          } else {
+          if (!d.moved) {
             setChatOpen(!chatOpen)
+            return
           }
+          // release velocity from the last ~120ms of movement
+          const now = performance.now()
+          const recent = d.samples.filter((s) => now - s.t < 120)
+          let vx = 0
+          let vy = 0
+          if (recent.length >= 2) {
+            const a = recent[0]
+            const b = recent[recent.length - 1]
+            const dt = Math.max(8, b.t - a.t) / 1000
+            vx = (b.x - a.x) / dt
+            vy = (b.y - a.y) / dt
+          }
+          if (Math.hypot(vx, vy) > THROW_SPEED) {
+            c.flight = { vx, vyUp: -vy } // screen y grows down; yOff grows up
+            setAnim('held')
+            return
+          }
+          setAnim(c.yOff > 4 ? 'idle' : 'happy', c.yOff > 4 ? 0 : 900)
+          if (d.wokeHim && Math.random() < 0.35) speak(pick(SLEEPY_LINES), 4000)
+          useStore.getState().setCompanionPos(c.x, c.yOff)
         }}
         onPointerCancel={() => {
           const c = ctl.current

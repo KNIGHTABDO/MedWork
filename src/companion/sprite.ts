@@ -12,7 +12,18 @@ const PALETTE: Record<string, string> = {
   W: '#ffe9d6', // eye glint
 }
 
-export type AnimName = 'idle' | 'blink' | 'walk' | 'sleep' | 'happy' | 'tap' | 'held'
+export type AnimName =
+  | 'idle'
+  | 'blink'
+  | 'walk'
+  | 'sleep'
+  | 'happy'
+  | 'tap'
+  | 'held'
+  | 'yawn'
+  | 'sit'
+  | 'wave'
+  | 'dizzy'
 
 // prettier-ignore
 const IDLE = [
@@ -158,6 +169,118 @@ const TAP = [
   '................',
 ]
 
+// prettier-ignore
+const YAWN_A = [
+  '.RR..........RR.',
+  '.RR..........RR.',
+  '.RR..RRRRRR..RR.',
+  '.RRRRRRRRRRRRRR.',
+  '....RRRRRRRR....',
+  '....RDDRRDDR....',
+  '....RRRRRRRR....',
+  '....RRRBBRRR....',
+  '....RRRBBRRR....',
+  '....RR.RR.RR....',
+  '....RR.RR.RR....',
+  '................',
+]
+
+// prettier-ignore
+const YAWN_B = [
+  '................',
+  '.RR..........RR.',
+  '.RR..RRRRRR..RR.',
+  '.RRRRRRRRRRRRRR.',
+  '....RRRRRRRR....',
+  '....RDDRRDDR....',
+  '....RRRRRRRR....',
+  '....RRRBBRRR....',
+  '....RRRRRRRR....',
+  '....RR.RR.RR....',
+  '....RR.RR.RR....',
+  '................',
+]
+
+// prettier-ignore
+const SIT = [
+  '................',
+  '................',
+  '..RR........RR..',
+  '..RR.RRRRRR.RR..',
+  '..RRRRRRRRRRRR..',
+  '....RBWRRBWR....',
+  '....RBBRRBBR....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '...RRRRRRRRRR...',
+  '................',
+]
+
+// prettier-ignore
+const WAVE_A = [
+  '.............RR.',
+  '..RR.........RR.',
+  '..RR.RRRRRR.RR..',
+  '..RRRRRRRRRRRR..',
+  '....RBWRRBWR....',
+  '....RBBRRBBR....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RR.RR.RR....',
+  '....RR.RR.RR....',
+  '................',
+]
+
+// prettier-ignore
+const WAVE_B = [
+  '................',
+  '..RR..........RR',
+  '..RR.RRRRRR..RR.',
+  '..RRRRRRRRRRRRR.',
+  '....RBWRRBWR....',
+  '....RBBRRBBR....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RR.RR.RR....',
+  '....RR.RR.RR....',
+  '................',
+]
+
+// prettier-ignore
+const DIZZY_A = [
+  '................',
+  '.RR........RR...',
+  '.RR.RRRRRR.RR...',
+  '.RRRRRRRRRRRR...',
+  '...RBDRRBDR.....',
+  '...RDBRRDBR.....',
+  '...RRRRRRRR.....',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RR.RR.RR....',
+  '....RR.RR.RR....',
+  '................',
+]
+
+// prettier-ignore
+const DIZZY_B = [
+  '................',
+  '...RR........RR.',
+  '...RR.RRRRRR.RR.',
+  '...RRRRRRRRRRRR.',
+  '.....RDBRRDBR...',
+  '.....RBDRRBDR...',
+  '.....RRRRRRRR...',
+  '....RRRRRRRR....',
+  '....RRRRRRRR....',
+  '....RR.RR.RR....',
+  '....RR.RR.RR....',
+  '................',
+]
+
 export const ANIMS: Record<AnimName, { frames: string[][]; ms: number }> = {
   idle: { frames: [IDLE, IDLE, IDLE, IDLE2], ms: 900 },
   blink: { frames: [BLINK], ms: 140 },
@@ -166,6 +289,10 @@ export const ANIMS: Record<AnimName, { frames: string[][]; ms: number }> = {
   happy: { frames: [HAPPY_A, HAPPY_B], ms: 220 },
   tap: { frames: [TAP, IDLE, TAP], ms: 200 },
   held: { frames: [WALK_A, WALK_B], ms: 110 },
+  yawn: { frames: [YAWN_B, YAWN_A, YAWN_A, YAWN_B], ms: 380 },
+  sit: { frames: [SIT], ms: 1000 },
+  wave: { frames: [WAVE_A, WAVE_B], ms: 240 },
+  dizzy: { frames: [DIZZY_A, DIZZY_B], ms: 170 },
 }
 
 export function drawFrame(ctx: CanvasRenderingContext2D, frame: string[], flip: boolean) {
