@@ -81,6 +81,9 @@ export interface AppState {
   // ---- companion ----
   chatOpen: boolean
   setChatOpen: (v: boolean) => void
+  companionX: number | null
+  companionY: number
+  setCompanionPos: (x: number, y: number) => void
 }
 
 export const useStore = create<AppState>()(
@@ -201,6 +204,9 @@ export const useStore = create<AppState>()(
       // ---- companion ----
       chatOpen: false,
       setChatOpen: (v) => set({ chatOpen: v }),
+      companionX: null,
+      companionY: 0,
+      setCompanionPos: (x, y) => set({ companionX: x, companionY: y }),
     }),
     {
       name: 'medwork',
@@ -222,6 +228,8 @@ export const useStore = create<AppState>()(
         groqKey: st.groqKey,
         userName: st.userName,
         use24h: st.use24h,
+        companionX: st.companionX,
+        companionY: st.companionY,
       }),
     },
   ),

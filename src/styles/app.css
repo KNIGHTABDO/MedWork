@@ -682,9 +682,14 @@
 
 .companion__canvas {
   display: block;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none; /* finger-drag must not scroll/zoom the page */
   image-rendering: pixelated;
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
+}
+
+.companion__canvas:active {
+  cursor: grabbing;
 }
 
 .companion__bubble {

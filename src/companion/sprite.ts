@@ -12,7 +12,7 @@ const PALETTE: Record<string, string> = {
   W: '#ffe9d6', // eye glint
 }
 
-export type AnimName = 'idle' | 'blink' | 'walk' | 'sleep' | 'happy' | 'tap'
+export type AnimName = 'idle' | 'blink' | 'walk' | 'sleep' | 'happy' | 'tap' | 'held'
 
 // prettier-ignore
 const IDLE = [
@@ -165,6 +165,7 @@ export const ANIMS: Record<AnimName, { frames: string[][]; ms: number }> = {
   sleep: { frames: [SLEEP], ms: 1200 },
   happy: { frames: [HAPPY_A, HAPPY_B], ms: 220 },
   tap: { frames: [TAP, IDLE, TAP], ms: 200 },
+  held: { frames: [WALK_A, WALK_B], ms: 110 },
 }
 
 export function drawFrame(ctx: CanvasRenderingContext2D, frame: string[], flip: boolean) {

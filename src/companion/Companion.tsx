@@ -31,10 +31,12 @@ export function Companion() {
 
   const ctl = useRef({
     x: 0,
+    yOff: 0, // height above the ground line (drag & drop)
     facing: 1,
     anim: 'idle' as AnimName,
     animUntil: 0, // for one-shot anims (happy/tap/blink)
     target: null as null | { x: number; resolve: () => void },
+    drag: null as null | { startX: number; startY: number; baseX: number; baseY: number; moved: boolean },
     frameIdx: 0,
     frameAt: 0,
     lastDrawnKey: '',
@@ -74,7 +76,7 @@ export function Companion() {
     return new Promise<void>((resolve) => {
       const c = ctl.current
       const clamped = Math.min(window.innerWidth - W - EDGE, Math.max(EDGE, x))
-      if (Math.abs(clamped - c.x) < 6) return resolve()
+      if (Math.abs(clamped - c.x) < 6 && c.yOff < 4) return resolve()
       c.target?.resolve()
       c.target = { x: clamped, resolve }
     })
@@ -83,7 +85,10 @@ export function Companion() {
   /* ---- main loop: movement, frames, ambient behavior ---- */
   useEffect(() => {
     const c = ctl.current
-    c.x = Math.max(EDGE, window.innerWidth * 0.62)
+    const saved = useStore.getState()
+    c.x = saved.companionX ?? Math.max(EDGE, window.innerWidth * 0.62)
+    c.x = Math.min(window.innerWidth - W - EDGE, Math.max(EDGE, c.x))
+    c.yOff = Math.min(Math.max(0, saved.companionY), window.innerHeight - H - 90)
     let raf = 0
     let last = performance.now()
 
@@ -101,26 +106,29 @@ export function Companion() {
         c.animUntil = 0
       }
 
-      // movement
-      if (c.target) {
+      // movement (paused while being dragged)
+      if (c.target && !c.drag) {
         const dx = c.target.x - c.x
         const step = SPEED * dt
         c.facing = dx >= 0 ? 1 : -1
         if (c.anim !== 'walk' && !c.animUntil) setAnimRaw('walk')
-        if (Math.abs(dx) <= step) {
+        // climb back down to the ground while heading somewhere
+        c.yOff = Math.max(0, c.yOff - SPEED * 1.4 * dt)
+        if (Math.abs(dx) <= step && c.yOff === 0) {
           c.x = c.target.x
           const t = c.target
           c.target = null
           setAnimRaw('idle')
+          useStore.getState().setCompanionPos(c.x, c.yOff)
           t.resolve()
-        } else {
+        } else if (Math.abs(dx) > step) {
           c.x += Math.sign(dx) * step
         }
       }
 
-      // ambient behavior (only when not running a command / chatting)
+      // ambient behavior (only when not running a command / chatting / held)
       const idleFor = Date.now() - c.lastInteraction
-      if (!c.busy && !c.target && !c.animUntil) {
+      if (!c.busy && !c.target && !c.animUntil && !c.drag) {
         const phase = useStore.getState().phase
         if (phase === 'focus' && idleFor > 75_000 && c.anim !== 'sleep') {
           setAnimRaw('sleep')
@@ -131,7 +139,11 @@ export function Companion() {
             c.nextBlink = Date.now() + 2500 + Math.random() * 4500
             c.anim = 'blink'
             c.animUntil = Date.now() + 150
-          } else if (Date.now() > c.nextWander && !useStore.getState().chatOpen) {
+          } else if (
+            Date.now() > c.nextWander &&
+            c.yOff < 4 && // perched somewhere? stay put until dragged or commanded
+            !useStore.getState().chatOpen
+          ) {
             c.nextWander = Date.now() + 12_000 + Math.random() * 18_000
             const nx = EDGE + Math.random() * (window.innerWidth - W - EDGE * 2)
             void walkTo(nx)
@@ -155,7 +167,10 @@ export function Companion() {
         const ctx = canvas.getContext('2d')
         if (ctx) drawFrame(ctx, animDef.frames[c.frameIdx % animDef.frames.length], c.facing < 0)
       }
-      wrap.style.transform = `translate3d(${c.x}px, 0, 0)`
+      // keep him on screen through orientation changes
+      c.x = Math.min(window.innerWidth - W - EDGE, Math.max(EDGE, c.x))
+      c.yOff = Math.min(window.innerHeight - H - 90, Math.max(0, c.yOff))
+      wrap.style.transform = `translate3d(${c.x}px, ${-c.yOff}px, 0)`
     }
 
     const setAnimRaw = (name: AnimName) => {
@@ -318,9 +333,49 @@ export function Companion() {
         height={H}
         aria-label="pixel the crab"
         role="button"
-        onClick={() => {
+        data-testid="companion-canvas"
+        onPointerDown={(e) => {
+          const c = ctl.current
           wake()
-          setChatOpen(!chatOpen)
+          e.currentTarget.setPointerCapture(e.pointerId)
+          c.drag = { startX: e.clientX, startY: e.clientY, baseX: c.x, baseY: c.yOff, moved: false }
+        }}
+        onPointerMove={(e) => {
+          const c = ctl.current
+          const d = c.drag
+          if (!d) return
+          const dx = e.clientX - d.startX
+          const dy = e.clientY - d.startY
+          if (!d.moved && Math.hypot(dx, dy) > 8) {
+            d.moved = true
+            // picked up mid-errand? cancel the walk
+            c.target?.resolve()
+            c.target = null
+            setAnim('held')
+          }
+          if (d.moved) {
+            c.x = Math.min(window.innerWidth - W - EDGE, Math.max(EDGE, d.baseX + dx))
+            c.yOff = Math.min(window.innerHeight - H - 90, Math.max(0, d.baseY - dy))
+          }
+        }}
+        onPointerUp={(e) => {
+          const c = ctl.current
+          const d = c.drag
+          c.drag = null
+          if (!d) return
+          e.currentTarget.releasePointerCapture(e.pointerId)
+          if (d.moved) {
+            setAnim(c.yOff > 4 ? 'idle' : 'happy', c.yOff > 4 ? 0 : 900)
+            useStore.getState().setCompanionPos(c.x, c.yOff)
+          } else {
+            setChatOpen(!chatOpen)
+          }
+        }}
+        onPointerCancel={() => {
+          const c = ctl.current
+          if (c.drag?.moved) useStore.getState().setCompanionPos(c.x, c.yOff)
+          c.drag = null
+          setAnim('idle')
         }}
       />
     </div>
