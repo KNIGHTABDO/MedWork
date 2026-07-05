@@ -1,0 +1,39 @@
+:root {
+  --font-ui: 'Nunito', -apple-system, 'SF Pro Rounded', system-ui, sans-serif;
+  --font-pixel: 'Pixelify Sans', 'Nunito', monospace;
+
+  --ink: #f7f4ee;
+  --ink-dim: rgba(247, 244, 238, 0.68);
+  --ink-faint: rgba(247, 244, 238, 0.42);
+
+  --accent: #ffc07a;
+  --accent-soft: rgba(255, 192, 122, 0.85);
+  --coral: #c96b4a;
+
+  --glass-tint: rgba(18, 22, 27, 0.3);
+  --glass-tint-strong: rgba(14, 18, 23, 0.48);
+  --glass-hi: rgba(255, 255, 255, 0.35);
+  --glass-ring: rgba(255, 255, 255, 0.1);
+
+  --radius-pill: 999px;
+  --radius-xl: 32px;
+  --radius-lg: 26px;
+  --radius-md: 18px;
+  --radius-sm: 13px;
+
+  --blur: 22px;
+  --blur-heavy: 34px;
+
+  --spring: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --shadow-float: 0 18px 50px rgba(0, 0, 0, 0.32);
+  --shadow-soft: 0 8px 28px rgba(0, 0, 0, 0.22);
+
+  --text-glow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 24px rgba(0, 0, 0, 0.25);
+
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
